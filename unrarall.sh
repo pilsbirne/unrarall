@@ -16,11 +16,21 @@ fi
 erfolgreich_entpackt=0
 fehler_beim_entpacken=0
 nicht_entpackte_archive=()
+gesamt_archiven=$(echo "$rar_archiven" | wc -l)
+aktueller_fortschritt=0
+entpackt_verzeichnis=""
 
-# Schleife zum Entpacken und Löschen der RAR-Archive
+# Schleife zum Entpacken und Verschieben der RAR-Archive
 for rar_archiv in $rar_archiven; do
-  entpackt_verzeichnis=$(dirname "$rar_archiv")
-  echo "Entpacke $rar_archiv nach $entpackt_verzeichnis..."
+  if [ -z "$entpackt_verzeichnis" ]; then
+    # Bestimme den Namen des ersten entpackten Verzeichnisses
+    entpackt_verzeichnis=$(unrar l "$rar_archiv" | awk '/^[[:space:]]*D/{print $NF}')
+    entpackt_verzeichnis="entpackt_${entpackt_verzeichnis}"
+  fi
+
+  echo -n "Entpacke $rar_archiv nach $entpackt_verzeichnis... "
+
+  # Entpacken und Verschieben
   if unrar x "$rar_archiv" "$entpackt_verzeichnis"; then
     ((erfolgreich_entpackt++))
     rm "$rar_archiv"
@@ -28,9 +38,14 @@ for rar_archiv in $rar_archiven; do
     ((fehler_beim_entpacken++))
     nicht_entpackte_archive+=("$rar_archiv")
   fi
+
+  # Aktualisiere den Fortschritt
+  ((aktueller_fortschritt++))
+  prozent_fortschritt=$((aktueller_fortschritt * 100 / gesamt_archiven))
+  echo -ne "Fortschritt: $prozent_fortschritt%\r"
 done
 
-# Anzeigen der Statistik
+# Neue Zeile für die Statistik und Abschlussmeldung
 echo -e "\n--- Statistik nach dem Entpacken ---"
 echo "Erfolgreich entpackte Archive: $erfolgreich_entpackt"
 echo "Fehler beim Entpacken: $fehler_beim_entpacken"
@@ -42,4 +57,4 @@ if [ $fehler_beim_entpacken -gt 0 ]; then
   done
 fi
 
-echo "Entpacken und Löschen abgeschlossen."
+echo "Entpacken, Verschieben und Löschen abgeschlossen."
